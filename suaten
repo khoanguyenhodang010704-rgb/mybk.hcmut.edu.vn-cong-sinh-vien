@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản Lý & Tra Cứu Điểm Sinh Viên</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f4f7f6; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2, h3 { text-align: center; color: #007bff; }
+        .box { border: 1px solid #e0e0e0; padding: 20px; margin-bottom: 20px; border-radius: 6px; background: #fafafa; }
+        input, button { padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        input { width: 100%; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; width: 100%; }
+        button:hover { background: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        th { background-color: #007bff; color: white; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #bd2130; }
+        .flex-group { display: flex; gap: 10px; }
+        .An { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>HỆ THỐNG QUẢN LÝ & TRA CỨU ĐIỂM</h2>
+
+    <!-- 1. KHUNG ĐĂNG NHẬP / TRA CỨU -->
+    <div id="khung-tra-cuu" class="box">
+        <h3>Sinh Viên Đăng Nhập Xem Điểm</h3>
+        <input type="text" id="user" placeholder="Nhập tài khoản (MSSV)">
+        <input type="password" id="pass" placeholder="Nhập mật khẩu">
+        <button onclick="xemDiem()">Đăng Nhập Xem Điểm</button>
+    </div>
+
+    <!-- 2. KHUNG HIỂN THỊ ĐIỂM SINH VIÊN -->
+    <div id="khung-ket-qua" class="box An">
+        <h3 id="ten-sv"></h3>
+        <table>
+            <tr><th>Môn Học</th><th>Điểm Số</th></tr>
+            <tr><td>Toán Cao Cấp</td><td id="res-toan" style="font-weight:bold; color:#007bff;"></td></tr>
+            <tr><td>Ngữ Văn</td><td id="res-van" style="font-weight:bold; color:#007bff;"></td></tr>
+        </table>
+        <button onclick="quayLai()" style="background:#6c757d; margin-top:15px;">Đăng Xuất</button>
+    </div>
+
+    <!-- 3. KHUNG DÀNH CHO QUẢN TRỊ VIÊN (THÊM / SỬA / XÓA) -->
+    <div class="box">
+        <h3>Bảng Điều Khiển Quản Lý (Admin)</h3>
+        <div class="flex-group">
+            <input type="text" id="add-mssv" placeholder="MSSV">
+            <input type="text" id="add-ten" placeholder="Họ và Tên">
+        </div>
+        <div class="flex-group">
+            <input type="password" id="add-pass" placeholder="Mật khẩu">
+            <input type="number" id="add-toan" placeholder="Điểm Toán" min="0" max="10" step="0.1">
+            <input type="number" id="add-van" placeholder="Điểm Văn" min="0" max="10" step="0.1">
+        </div>
+        <button onclick="themHoacSuaSinhVien()" style="background: #28a745;">Lưu / Cập Nhật Sinh Viên</button>
+
+        <h3>Danh Sách Sinh Viên Hiện Tại</h3>
+        <table>
+            <thead>
+                <tr><th>MSSV</th><th>Họ Tên</th><th>Mật Khẩu</th><th>Toán</th><th>Văn</th><th>Hành Động</th></tr>
+            </thead>
+            <tbody id="danh-sach-sv">
+                <!-- Dữ liệu tự động điền ở đây -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // Dữ liệu ban đầu (Tự động lưu vào bộ nhớ trình duyệt nếu có thay đổi)
+    let duLieuSinhVien = JSON.parse(localStorage.getItem('dataSV')) || {
+        "sv01": { ten: "Nguyễn Văn A", pass: "123", toan: 9, van: 8 },
+        "sv02": { ten: "Trần Thị B", pass: "123", toan: 7, van: 6 }
+    };
+
+    // Hàm cập nhật và hiển thị danh sách sinh viên lên bảng admin
+    function capNhatBangAdmin() {
+        localStorage.setItem('dataSV', JSON.stringify(duLieuSinhVien));
+        const tbody = document.getElementById("danh-sach-sv");
+        tbody.innerHTML = "";
+        
+        for (let mssv in duLieuSinhVien) {
+            let sv = duLieuSinhVien[mssv];
+            tbody.innerHTML += `
+                <tr>
+                    <td>\${mssv}</td>
+                    <td>\${sv.ten}</td>
+                    <td>\${sv.pass}</td>
+                    <td>\${sv.toan}</td>
+                    <td>\${sv.van}</td>
+                    <td>
+                        <button onclick="chuanBiSua('\${mssv}')" style="padding:4px 8px; font-size:12px; display:inline; width:auto; margin-right:5px;">Sửa</button>
+                        <button onclick="xoaSinhVien('\${mssv}')" class="btn-danger" style="padding:4px 8px; font-size:12px; display:inline; width:auto;">Xóa</button>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    // Hàm sinh viên đăng nhập xem điểm
+    function xemDiem() {
+        const u = document.getElementById("user").value;
+        const p = document.getElementById("pass").value;
+
+        if (duLieuSinhVien[u] && duLieuSinhVien[u].pass === p) {
+            document.getElementById("khung-tra-cuu").classList.add("An");
+            document.getElementById("khung-ket-qua").classList.remove("An");
+            
+            document.getElementById("ten-sv").innerText = "Sinh viên: " + duLieuSinhVien[u].ten;
+            document.getElementById("res-toan").innerText = duLieuSinhVien[u].toan;
+            document.getElementById("res-van").innerText = duLieuSinhVien[u].van;
+        } else {
+            alert("Sai tài khoản hoặc mật khẩu!");
+        }
+    }
+
+    function quayLai() {
+        document.getElementById("khung-tra-cuu").classList.remove("An");
+        document.getElementById("khung-ket-qua").classList.add("An");
+        document.getElementById("user").value = "";
+        document.getElementById("pass").value = "";
+    }
+
+    // Hàm thêm mới hoặc chỉnh sửa thông tin sinh viên
+    function themHoacSuaSinhVien() {
+        const mssv = document.getElementById("add-mssv").value.trim();
+        const ten = document.getElementById("add-ten").value.trim();
+        const pass = document.getElementById("add-pass").value.trim();
+        const toan = parseFloat(document.getElementById("add-toan").value) || 0;
+        const van = parseFloat(document.getElementById("add-van").value) || 0;
+
+        if (!mssv || !ten || !pass) {
+            alert("Vui lòng nhập đầy đủ MSSV, Tên và Mật khẩu!");
+            return;
+        }
+
+        duLieuSinhVien[mssv] = { ten: ten, pass: pass, toan: toan, van: van };
+        capNhatBangAdmin();
+        
+        // Xóa sạch các ô nhập sau khi lưu
+        document.getElementById("add-mssv").value = "";
+        document.getElementById("add-ten").value = "";
+        document.getElementById("add-pass").value = "";
+        document.getElementById("add-toan").value = "";
+        document.getElementById("add-van").value = "";
+    }
+
+    // Hàm điền dữ liệu cũ lên ô nhập để sửa
+    function chuanBiSua(mssv) {
+        let sv = duLieuSinhVien[mssv];
+        document.getElementById("add-mssv").value = mssv;
+        document.getElementById("add-ten").value = sv.ten;
+        document.getElementById("add-pass").value = sv.pass;
+        document.getElementById("add-toan").value = sv.toan;
+        document.getElementById("add-van").value = sv.van;
+    }
+
+    // Hàm xóa sinh viên
+    function xoaSinhVien(mssv) {
+        if (confirm("Bạn có chắc chắn muốn xóa sinh viên " + mssv + " không?")) {
+            delete duLieuSinhVien[mssv];
+            capNhatBangAdmin();
+        }
+    }
+
+    // Chạy hiển thị danh sách lần đầu tiên khi mở trang
+    capNhatBangAdmin();
+</script>
+
+</body>
+</html>
